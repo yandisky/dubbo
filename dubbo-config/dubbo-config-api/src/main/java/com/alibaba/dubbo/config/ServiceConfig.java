@@ -510,10 +510,12 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         if (StringUtils.isNotEmpty(proxy)) {
                             registryURL = registryURL.addParameter(Constants.PROXY_KEY, proxy);
                         }
-
+                        //@study 使用了动态代理（SPI）+装饰器模式，构造Invoker和Exporter
+                        //@study 为服务提供类（ref）生成 Invoker
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(Constants.EXPORT_KEY, url.toFullString()));
+                        //@study DelegateProviderMetaDataInvoker 用于持有 Invoker 和 ServiceConfig
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
-
+                        //@study 导出服务，并生成Exporter
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
                         exporters.add(exporter);
                     }

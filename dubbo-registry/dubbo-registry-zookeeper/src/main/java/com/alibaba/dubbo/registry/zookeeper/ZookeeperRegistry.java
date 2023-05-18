@@ -61,12 +61,15 @@ public class ZookeeperRegistry extends FailbackRegistry {
         if (url.isAnyHost()) {
             throw new IllegalStateException("registry address == null");
         }
+        //@study 获取组名，默认为dubbo
         String group = url.getParameter(Constants.GROUP_KEY, DEFAULT_ROOT);
         if (!group.startsWith(Constants.PATH_SEPARATOR)) {
             group = Constants.PATH_SEPARATOR + group;
         }
         this.root = group;
+        //@study 创建Zookeeper客户端，默认为CuratorZookeeperTransporter
         zkClient = zookeeperTransporter.connect(url);
+        //@study 添加状态监听器
         zkClient.addStateListener(new StateListener() {
             @Override
             public void stateChanged(int state) {
@@ -111,6 +114,8 @@ public class ZookeeperRegistry extends FailbackRegistry {
     @Override
     protected void doRegister(URL url) {
         try {
+            //@study 通过Zookeeper客户端创建节点，节点路径由toUrlPath方法生成，格式如下：
+            //@study /${group}/${serviceInterface}/providers/${url}
             zkClient.create(toUrlPath(url), url.getParameter(Constants.DYNAMIC_KEY, true));
         } catch (Throwable e) {
             throw new RpcException("Failed to register " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);

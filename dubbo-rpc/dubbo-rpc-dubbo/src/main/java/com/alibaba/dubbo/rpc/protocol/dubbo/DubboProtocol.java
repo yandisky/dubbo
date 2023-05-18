@@ -229,6 +229,8 @@ public class DubboProtocol extends AbstractProtocol {
         URL url = invoker.getUrl();
 
         // export service.
+        //@study 获取服务标识，理解成服务坐标也行。由服务组名，服务名，服务版本号以及端口组成
+        //@study demoGroup/com.alibaba.dubbo.demo.DemoService:1.0.1:20880
         String key = serviceKey(url);
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.put(key, exporter);
@@ -264,6 +266,7 @@ public class DubboProtocol extends AbstractProtocol {
                 serverMap.put(key, createServer(url));
             } else {
                 // server supports reset, use together with override
+                //@study 服务器已创建，根据url中的配置重置服务器
                 server.reset(url);
             }
         }
@@ -273,19 +276,23 @@ public class DubboProtocol extends AbstractProtocol {
         // send readonly event when server closes, it's enabled by default
         url = url.addParameterIfAbsent(Constants.CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString());
         // enable heartbeat by default
+        //@study 添加心跳检测配置到url中
         url = url.addParameterIfAbsent(Constants.HEARTBEAT_KEY, String.valueOf(Constants.DEFAULT_HEARTBEAT));
+        //@study 获取server参数，默认为netty
         String str = url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_SERVER);
-
+        //@study 通过SPI检测是否存在server参数所代表的Transporter拓展
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str))
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
-
+        //@study 添加编码解码器参数
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
         ExchangeServer server;
         try {
+            //@study 创建ExchangeServer
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
         }
+        //@study 获取client参数，可指定netty，mina
         str = url.getParameter(Constants.CLIENT_KEY);
         if (str != null && str.length() > 0) {
             Set<String> supportedTypes = ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions();
@@ -341,9 +348,12 @@ public class DubboProtocol extends AbstractProtocol {
 
     private ExchangeClient[] getClients(URL url) {
         // whether to share connection
+        //@study 是否共享连接
         boolean service_share_connect = false;
+        //@study 获取连接数，默认为0，表示未配置
         int connections = url.getParameter(Constants.CONNECTIONS_KEY, 0);
         // if not configured, connection is shared, otherwise, one connection for one service
+        //@study 如果未配置connections，则共享连接
         if (connections == 0) {
             service_share_connect = true;
             connections = 1;
@@ -352,8 +362,10 @@ public class DubboProtocol extends AbstractProtocol {
         ExchangeClient[] clients = new ExchangeClient[connections];
         for (int i = 0; i < clients.length; i++) {
             if (service_share_connect) {
+                //@study 获取共享客户端
                 clients[i] = getSharedClient(url);
             } else {
+                //@study 初始化新的客户端
                 clients[i] = initClient(url);
             }
         }
@@ -396,6 +408,7 @@ public class DubboProtocol extends AbstractProtocol {
     private ExchangeClient initClient(URL url) {
 
         // client type setting.
+        //@study 获取客户端类型，默认为netty
         String str = url.getParameter(Constants.CLIENT_KEY, url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_CLIENT));
 
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
@@ -411,9 +424,12 @@ public class DubboProtocol extends AbstractProtocol {
         ExchangeClient client;
         try {
             // connection should be lazy
+            //@study 获取lazy配置，并根据配置值决定创建的客户端类型
             if (url.getParameter(Constants.LAZY_CONNECT_KEY, false)) {
+                //@study 创建赖加载 ExchangeClient 实例
                 client = new LazyConnectExchangeClient(url, requestHandler);
             } else {
+                //@study 创建 ExchangeClient 实例
                 client = Exchangers.connect(url, requestHandler);
             }
         } catch (RemotingException e) {

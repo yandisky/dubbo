@@ -359,12 +359,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         }
 
         if (isJvmRefer) {
+            //@study 本地引用
             URL url = new URL(Constants.LOCAL_PROTOCOL, NetUtils.LOCALHOST, 0, interfaceClass.getName()).addParameters(map);
             invoker = refprotocol.refer(interfaceClass, url);
             if (logger.isInfoEnabled()) {
                 logger.info("Using injvm service " + interfaceClass.getName());
             }
         } else {
+            //@study 点对点调用
             if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
                 String[] us = Constants.SEMICOLON_SPLIT_PATTERN.split(url);
                 if (us != null && us.length > 0) {
@@ -381,6 +383,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                     }
                 }
             } else { // assemble URL from register center's configuration
+                //@study 加载注册中心url
                 List<URL> us = loadRegistries(false);
                 if (us != null && !us.isEmpty()) {
                     for (URL u : us) {
@@ -388,6 +391,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                         if (monitorUrl != null) {
                             map.put(Constants.MONITOR_KEY, URL.encode(monitorUrl.toFullString()));
                         }
+                        //@study 添加refer参数到url中，并将url添加到urls中
                         urls.add(u.addParameterAndEncoded(Constants.REFER_KEY, StringUtils.toQueryString(map)));
                     }
                 }
@@ -397,11 +401,16 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             }
 
             if (urls.size() == 1) {
+                //@study 单个注册中心或服务提供者
+                //@study 调用RegistryProtocol的refer构建Invoker实例
                 invoker = refprotocol.refer(interfaceClass, urls.get(0));
             } else {
+                //@study 多个注册中心或多个服务提供者，或者两者混合
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
+                //@study 获取所有的Invoker
                 for (URL url : urls) {
+                    //@study 通过refprotocol调用refer构建Invoker，refprotocol会在运行时根据url协议头加载指定的Protocol实例，并调用实例的refer方法
                     invokers.add(refprotocol.refer(interfaceClass, url));
                     if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
                         registryURL = url; // use last registry url
@@ -409,7 +418,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
                 if (registryURL != null) { // registry url is available
                     // use AvailableCluster only when register's cluster is available
+                    //@study 如果注册中心链接不为空，则将使用AvailableCluster
                     URL u = registryURL.addParameterIfAbsent(Constants.CLUSTER_KEY, AvailableCluster.NAME);
+                    //@study 创建StaticDirectory实例，并由Cluster对多个Invoker进行合并
                     invoker = cluster.join(new StaticDirectory(u, invokers));
                 } else { // not a registry url
                     invoker = cluster.join(new StaticDirectory(invokers));
